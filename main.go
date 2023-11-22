@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 
-    _ "github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
@@ -16,32 +16,13 @@ func main() {
 	http.HandleFunc("/", handleHome)
 	http.HandleFunc("/login", handleLogin)
 
-    fmt.Println("Listening at 8080")
+	fmt.Println("Listening at 8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func handleLogin(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		db, err := sql.Open("sqlite3", "./tdt.db")
-		if err != nil {
-			panic(err)
-		}
-		defer db.Close()
-
-		rows, err := db.Query("SELECT * FROM users;")
-		for rows.Next() {
-			var id int
-			var name string
-
-			err = rows.Scan(&id, &name)
-			if err != nil {
-				panic(err)
-			}
-
-            fmt.Println(id, name)
-		}
-
 		tmpl := template.Must(template.ParseFiles("templates/login.html"))
 		tmpl.Execute(w, nil)
 
@@ -51,10 +32,34 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 			fmt.Println("feeh 7aga msh tamam")
 		}
 
-		fmt.Println(r.PostForm.Get("email"))
-		fmt.Println(r.PostForm.Get("password"))
+		formUsername := r.PostForm.Get("email")
+		formPassword := r.PostForm.Get("password")
 
-		http.Redirect(w, r, "/", http.StatusFound)
+		db, err := sql.Open("sqlite3", "./tdt.db")
+		if err != nil {
+			panic(err)
+		}
+		defer db.Close()
+
+		var rowId int
+		var rowUsername string
+		var rowPassword string
+
+		err = db.QueryRow(
+			"SELECT * FROM users WHERE name = ?;",
+			formUsername,
+		).Scan(&rowId, &rowUsername, &rowPassword)
+
+		if err != nil {
+			panic(err)
+		}
+
+		if formPassword == rowPassword {
+			http.Redirect(w, r, "/", http.StatusFound)
+		} else {
+            tmpl := template.Must(template.ParseFiles("templates/login.html"))
+            tmpl.Execute(w, "Invalid credentials")
+        }
 
 	default:
 		fmt.Println("Unsupported method")
